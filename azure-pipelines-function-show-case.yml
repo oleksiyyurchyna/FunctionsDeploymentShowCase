@@ -4,7 +4,8 @@ stages:
   - stage: BuildFunctions
     displayName: "Build functions"
     jobs:
-      - job: BuildFunctionViaCli
+      - job: BuildFunctions
+        displayName: "Build and deploy functions"
         steps:
         - task: UseDotNet@2
           displayName: "Use .NET Core 8.x"
@@ -13,6 +14,7 @@ stages:
             version: "8.x"
 
         - task: DotNetCoreCLI@2
+          displayName: "Build: Function via CLI"
           inputs:
             command: publish
             arguments: "--configuration Release --output publish_output_viacli"
@@ -22,18 +24,20 @@ stages:
             zipAfterPublish: false
         
         - task: ArchiveFiles@2
-          displayName: "Archive files"
+          displayName: "Archive: Function via CLI"
           inputs:
             rootFolderOrFile: "$(System.DefaultWorkingDirectory)/publish_output_viacli"
             includeRootFolder: false
             archiveFile: "$(System.DefaultWorkingDirectory)/Functions.ViaCli.zip"
 
         - task: PublishBuildArtifacts@1
+          displayName: "Publish artifact: Function via CLI"
           inputs:
             PathtoPublish: "$(System.DefaultWorkingDirectory)/Functions.ViaCli.zip"
             artifactName: "Functions.ViaCli"
 
         - task: DotNetCoreCLI@2
+          displayName: "Build: Function via DevOps task"
           inputs:
             command: publish
             arguments: "--configuration Release --output publish_output_viadevopstask"
@@ -43,19 +47,20 @@ stages:
             zipAfterPublish: false
         
         - task: ArchiveFiles@2
-          displayName: "Archive files"
+          displayName: "Archive: Function via DevOps task"
           inputs:
             rootFolderOrFile: "$(System.DefaultWorkingDirectory)/publish_output_viadevopstask"
             includeRootFolder: false
             archiveFile: "$(System.DefaultWorkingDirectory)/Functions.DevOpsTask.zip"
 
         - task: PublishBuildArtifacts@1
+          displayName: "Publish artifact: Function via DevOps task"
           inputs:
             PathtoPublish: "$(System.DefaultWorkingDirectory)/Functions.DevOpsTask.zip"
             artifactName: "Functions.DevOpsTask"
 
         - task: AzureFunctionApp@2
-          displayName: 'Deploy Function via DevOps task'
+          displayName: 'Deploy: Function via DevOps task'
           inputs:
             connectedServiceNameARM: 'Core-Commerce DEV Service Connection'
             appType: 'functionAppLinux'
@@ -66,7 +71,7 @@ stages:
             deploymentMethod: 'zipDeploy'
 
         - task: AzureCLI@2
-          displayName: "Deploy Function via CLI"
+          displayName: "Deploy: Function via CLI"
           inputs:
             continueOnError: true
             azureSubscription: 'Core-Commerce DEV Service Connection'
