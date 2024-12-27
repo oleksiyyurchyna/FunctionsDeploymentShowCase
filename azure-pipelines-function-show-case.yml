@@ -1,0 +1,80 @@
+trigger: none
+
+stages:
+  - stage: BuildFunctions
+    displayName: "Build functions"
+    jobs:
+      - job: BuildFunctionViaCli
+        steps:
+        - task: UseDotNet@2
+          displayName: "Use .NET Core 8.x"
+          inputs:
+            packageType: "sdk"
+            version: "8.x"
+
+        - task: DotNetCoreCLI@2
+          inputs:
+            command: publish
+            arguments: "--configuration Release --output publish_output_viacli"
+            projects: "$(Build.SourcesDirectory)/**/FunctionsDeploymentShowCase.AzCli.csproj"
+            publishWebProjects: false
+            modifyOutputPath: false
+            zipAfterPublish: false
+        
+        - task: ArchiveFiles@2
+          displayName: "Archive files"
+          inputs:
+            rootFolderOrFile: "$(System.DefaultWorkingDirectory)/publish_output_viacli"
+            includeRootFolder: false
+            archiveFile: "$(System.DefaultWorkingDirectory)/Functions.ViaCli.zip"
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: "$(System.DefaultWorkingDirectory)/Functions.ViaCli.zip"
+            artifactName: "Functions.ViaCli"
+
+        - task: DotNetCoreCLI@2
+          inputs:
+            command: publish
+            arguments: "--configuration Release --output publish_output_viadevopstask"
+            projects: "$(Build.SourcesDirectory)/**/FunctionsDeploymentShowCase.DevOpsTask.csproj"
+            publishWebProjects: false
+            modifyOutputPath: false
+            zipAfterPublish: false
+        
+        - task: ArchiveFiles@2
+          displayName: "Archive files"
+          inputs:
+            rootFolderOrFile: "$(System.DefaultWorkingDirectory)/publish_output_viadevopstask"
+            includeRootFolder: false
+            archiveFile: "$(System.DefaultWorkingDirectory)/Functions.DevOpsTask.zip"
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: "$(System.DefaultWorkingDirectory)/Functions.DevOpsTask.zip"
+            artifactName: "Functions.DevOpsTask"
+
+        - task: AzureFunctionApp@2
+          displayName: 'Deploy Function via DevOps task'
+          inputs:
+            connectedServiceNameARM: 'Core-Commerce DEV Service Connection'
+            appType: 'functionAppLinux'
+            resourceGroupName: 'rg-func-deploy-case'
+            appName: 'func-deploy-devops-task'
+            package: '$(Pipeline.Workspace)/s/Functions.DevOpsTask.zip'
+            runtimeStack: 'DOTNET-ISOLATED|8.0'
+            deploymentMethod: 'zipDeploy'
+
+        - task: AzureCLI@2
+          displayName: "Deploy Function via CLI"
+          inputs:
+            continueOnError: true
+            azureSubscription: 'Core-Commerce DEV Service Connection'
+            scriptType: pscore
+            scriptLocation: inlineScript
+            inlineScript: |
+                az functionapp deployment source config-zip `
+                          -g 'rg-func-deploy-case' `
+                          -n 'func-deploy-az-cli' `
+                          --src '$(Pipeline.Workspace)/s/Functions.ViaCli.zip' `
+                          --debug
